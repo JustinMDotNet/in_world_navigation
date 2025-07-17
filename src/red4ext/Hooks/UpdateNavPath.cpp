@@ -10,7 +10,13 @@
 // could use 1268721260 (this, type, data)
 // void game::ui::MappinsContainerController::OnGPSPathChanged(game::gps::ETargetType, game::gps::IListener::PathData const &)
 
-REGISTER_HOOK_HASH(void, 3797170204, UpdateNavPath, 
+// 3770693656
+// void game::ui::MinimapContainerController::UpdateGPSPath(struct ink::IWidgetController::UpdateContext const &,enum game::gps::ETargetType,struct ink::LinePatternWidgetReference const &)
+
+// 3637917225
+// UpdateFromPoints(game::ui::MinimapContainerController *this, DynArray<Vector4> *points, __int64 linePatternWidgetRef)
+
+REGISTER_HOOK_HASH(void, 3770693656, UpdateNavPath, 
     RED4ext::game::ui::MinimapContainerController *mmcc, 
     __int64 updateContext, 
     unsigned __int8 targetType,
