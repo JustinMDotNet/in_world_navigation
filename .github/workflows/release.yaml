@@ -22,6 +22,11 @@ jobs:
     permissions:
       contents: write
     env:
+      # Tag name to release. For tag-push triggers this is github.ref_name
+      # (e.g. v0.1.21). For workflow_dispatch we honor the operator-supplied
+      # tag input so a release can be re-run for an existing tag without
+      # producing zips named after the dispatched branch.
+      RELEASE_REF: ${{ inputs.tag || github.ref_name }}
       GIT_CLIFF_VERSION: 0.10.0
       CHANGELOG_FILE: ${{ github.workspace }}-CHANGES.md
 
@@ -29,6 +34,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ env.RELEASE_REF }}
           submodules: recursive
           fetch-depth: 0  # git-cliff needs full history
           persist-credentials: false
@@ -59,22 +65,23 @@ jobs:
           Get-Content requirements.md | Add-Content ${{ env.CHANGELOG_FILE }}
 
       - name: Zip game_dir
-        run: tar -cvf "${{ github.workspace }}/${{ env.MOD_SLUG }}_${{ github.ref_name }}.zip" --format=zip *
+        run: tar -cvf "${{ github.workspace }}/${{ env.MOD_SLUG }}_${{ env.RELEASE_REF }}.zip" --format=zip *
         working-directory: game_dir
 
       - name: Zip game_dir_debug
-        run: tar -cvf "${{ github.workspace }}/${{ env.MOD_SLUG }}_${{ github.ref_name }}_pdb.zip" --format=zip *
+        run: tar -cvf "${{ github.workspace }}/${{ env.MOD_SLUG }}_${{ env.RELEASE_REF }}_pdb.zip" --format=zip *
         working-directory: game_dir_debug
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: ${{ github.ref_name }}${{ env.CYBERPUNK_2077_GAME_VERSION_STR }}
+          tag_name: ${{ env.RELEASE_REF }}
+          name: ${{ env.RELEASE_REF }}${{ env.CYBERPUNK_2077_GAME_VERSION_STR }}
           body_path: ${{ env.CHANGELOG_FILE }}
           append_body: true
           files: |
-            ${{ env.MOD_SLUG }}_${{ github.ref_name }}*.zip
-          prerelease: ${{ contains(github.ref_name, '-') || contains(github.ref_name, '_') }}
+            ${{ env.MOD_SLUG }}_${{ env.RELEASE_REF }}*.zip
+          prerelease: ${{ contains(env.RELEASE_REF, '-') || contains(env.RELEASE_REF, '_') }}
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
