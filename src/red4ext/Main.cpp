@@ -109,12 +109,28 @@ RED4EXT_C_EXPORT bool RED4EXT_CALL Main(RED4ext::PluginHandle aHandle, RED4ext::
     auto scriptsFolder = Utils::GetRootDir() / "r6" / "scripts" / "in_world_navigation";
     if (std::filesystem::exists(scriptsFolder)) {
       spdlog::info("Deleting old scripts folder");
-      std::filesystem::remove_all(scriptsFolder);
+      try {
+        std::filesystem::remove_all(scriptsFolder);
+      } catch (const std::exception& e) {
+        // Catch broadly: remove_all documents filesystem_error but can also
+        // surface bad_alloc / system_error in practice. Anything that escapes
+        // an extern "C" Main becomes std::terminate, which would kill the
+        // game over a legacy-cleanup nicety. Log and continue.
+        spdlog::warn("Failed to remove old scripts folder: {}", e.what());
+      } catch (...) {
+        spdlog::warn("Failed to remove old scripts folder (unknown exception)");
+      }
     }
     auto archive = Utils::GetRootDir() / "archive" / "pc" / "mod" / "in_world_navigation.archive";
     if (std::filesystem::exists(archive)) {
       spdlog::info("Deleting old archive");
-      std::filesystem::remove_all(archive);
+      try {
+        std::filesystem::remove_all(archive);
+      } catch (const std::exception& e) {
+        spdlog::warn("Failed to remove old archive: {}", e.what());
+      } catch (...) {
+        spdlog::warn("Failed to remove old archive (unknown exception)");
+      }
     }
 
     RED4ext::RTTIRegistrator::Add(RegisterTypes, PostRegisterTypes);
@@ -128,11 +144,26 @@ RED4EXT_C_EXPORT bool RED4EXT_CALL Main(RED4ext::PluginHandle aHandle, RED4ext::
     break;
   }
   case RED4ext::EMainReason::Unload: {
-    // Free memory, detach hooks.
-    // The game's memory is already freed, to not try to do anything with it.
-
+    // Free memory, detach hooks. At this point the game process is still
+    // alive and the loader is preparing to unload our DLL. Game-owned
+    // objects MAY have begun teardown — be conservative about touching
+    // them. (The original "the game's memory is already freed" comment
+    // here was a defensive simplification; in practice some allocator
+    // pools are still alive but you cannot safely dereference handles
+    // into IScriptable instances without race risk.)
     spdlog::info("Shutting down");
+
+    // Order matters: detach hooks FIRST so no game thread can fire
+    // UpdateNavPath -> InWorldNavigation::GetInstance() after we've
+    // dropped the singleton. If we reset the handle while a hook can
+    // still fire, GetInstance() lazily re-creates the instance and
+    // re-arms the file-scope handle with a fresh refcount — restoring
+    // the very UAF this fix is meant to prevent (issues #27/#35/#43).
+    // Detach is not a thread-quiesce barrier, so a hook call already
+    // mid-trampoline can still race, but this shrinks the window from
+    // "all of Unload()" to "the in-flight call's return path".
     ModModuleFactory::GetInstance().Unload(aSdk, aHandle);
+    InWorldNavigation::Shutdown();
     spdlog::shutdown();
     break;
   }

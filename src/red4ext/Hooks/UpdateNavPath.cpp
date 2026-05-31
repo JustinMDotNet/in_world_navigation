@@ -27,7 +27,13 @@ REGISTER_HOOK_HASH(void, 3770693656, UpdateNavPath,
   if (mmcc->GetType() == rtti->GetClass("gameuiMinimapContainerController")) {
     // auto profiler = CyberpunkMod::Profiler("UpdateNavPath", 5);
     auto fnp = InWorldNavigation::GetInstance();
-    auto args = RED4ext::CStackType(rtti->GetType("Int32"), &targetType);
+    // The game's UpdateGPSPath signature delivers targetType as a 1-byte
+    // enum (unsigned __int8), but the Redscript-side Update(Int32) expects
+    // a 4-byte value. Passing &targetType directly would have the Redscript
+    // VM read 3 bytes of stack garbage in the upper bits. Widen to int32_t
+    // locally so the address we pass points at the full 4 bytes.
+    int32_t targetTypeAsInt32 = static_cast<int32_t>(targetType);
+    auto args = RED4ext::CStackType(rtti->GetType("Int32"), &targetTypeAsInt32);
     auto stack = RED4ext::CStack(fnp, &args, 1, nullptr);
     auto update = rtti->GetClass("InWorldNavigation")->GetFunction("Update");
     if (update)
