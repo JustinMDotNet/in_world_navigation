@@ -172,7 +172,9 @@ public native class InWorldNavigation extends IScriptable {
           }
         } else {     
           for fx in this.navPathFXs[0] {
-            fx.BreakLoop();
+            if IsDefined(fx) {
+              fx.BreakLoop();
+            }
           }
         }
         this.poiMappin = this.mmcc.GetPOIMappin();
@@ -185,7 +187,9 @@ public native class InWorldNavigation extends IScriptable {
           }
         } else {
           for fx in this.navPathFXs[1] {
-            fx.BreakLoop();
+            if IsDefined(fx) {
+              fx.BreakLoop();
+            }
           }
         }
       } else {
@@ -196,10 +200,14 @@ public native class InWorldNavigation extends IScriptable {
 
   public func Stop() {
     for fx in this.navPathFXs[0] {
-      fx.BreakLoop();
+      if IsDefined(fx) {
+        fx.BreakLoop();
+      }
     }
     for fx in this.navPathFXs[1] {
-      fx.BreakLoop();
+      if IsDefined(fx) {
+        fx.BreakLoop();
+      }
     }
   }
 
@@ -208,37 +216,34 @@ public native class InWorldNavigation extends IScriptable {
   private func UpdateNavPath(type: Int32, points: array<Vector4>, resource: FxResource, force: Bool) -> Void {
     let pointDrawnCount: Int32 = 0;
     let dots: array<Transform>;
-    let i = ArraySize(points) - 1;
-    let lastDrawnPoint: Vector4 = points[i];
+    let i: Int32 = ArraySize(points) - 1;
+    // Guard against an empty points array. The original code derefenced
+    // points[i] unconditionally; if i was -1 (empty path), that was an
+    // out-of-bounds read. With this guard we skip the dots-population
+    // loop entirely, and the cleanup loops below correctly kill any
+    // remaining FX instances.
+    if i >= 0 {
+      let lastDrawnPoint: Vector4 = points[i];
 
-    // let firstDistance = Vector4.Distance( points[i],points[i-1]);
-    // let lastDrawnPoint: Vector4 = Vector4.Interpolate(points[i], points[i-1], this.timer / firstDistance);
-    // this.timer += 0.01;
-    // if this.timer > this.spacing {
-    //   this.timer -= this.spacing;
-    //   ArrayRemove(this.navPathFXs[type], this.navPathFXs[type][0]);
-    // }
-
-    while i > 0 {
-      let tweenPointDistance = Vector4.Distance(points[i-1], lastDrawnPoint);
-      if i == 1 {
-        tweenPointDistance += this.spacing;
-      }
-      if tweenPointDistance >= this.spacing {
-        // let rounded = Cast<Float>(RoundF(tweenPointDistance / this.spacing));
-        // let tweenPointSpacing = this.spacing + (tweenPointDistance - rounded * this.spacing) / rounded;
-        let lastDrawnPointInLastGroup = lastDrawnPoint;
-        let distance = this.spacing;
-        while distance <= tweenPointDistance {
-          let ratio: Float = distance / tweenPointDistance;
-          let position = Vector4.Interpolate(lastDrawnPointInLastGroup, points[i-1], ratio);
-          let orientation = Quaternion.BuildFromDirectionVector(lastDrawnPoint - position);
-          distance += this.spacing;
-          ArrayPush(dots, Transform.Create(position, orientation));
-          lastDrawnPoint = position;
+      while i > 0 {
+        let tweenPointDistance = Vector4.Distance(points[i-1], lastDrawnPoint);
+        if i == 1 {
+          tweenPointDistance += this.spacing;
         }
+        if tweenPointDistance >= this.spacing {
+          let lastDrawnPointInLastGroup = lastDrawnPoint;
+          let distance = this.spacing;
+          while distance <= tweenPointDistance {
+            let ratio: Float = distance / tweenPointDistance;
+            let position = Vector4.Interpolate(lastDrawnPointInLastGroup, points[i-1], ratio);
+            let orientation = Quaternion.BuildFromDirectionVector(lastDrawnPoint - position);
+            distance += this.spacing;
+            ArrayPush(dots, Transform.Create(position, orientation));
+            lastDrawnPoint = position;
+          }
+        }
+        i -= 1;
       }
-      i -= 1;
     }
 
     i = 0;
@@ -269,10 +274,16 @@ public native class InWorldNavigation extends IScriptable {
       i -= 1;
     }
 
-    while pointDrawnCount < this.maxPoints && pointDrawnCount < ArraySize(this.navPathFXs[type]) {   
-      this.navPathFXs[type][pointDrawnCount].SetBlackboardValue(n"alpha", 0.0);
-      this.navPathFXs[type][pointDrawnCount].BreakLoop();
-      this.navPathFXs[type][pointDrawnCount].Kill();
+    while pointDrawnCount < this.maxPoints && pointDrawnCount < ArraySize(this.navPathFXs[type]) {
+      // Guard against an FxInstance that the engine has already killed/expired
+      // from under us — same crash class as the IsDefined checks in Update()
+      // and Stop(). If undefined here, the slot is already effectively dead;
+      // just advance.
+      if IsDefined(this.navPathFXs[type][pointDrawnCount]) {
+        this.navPathFXs[type][pointDrawnCount].SetBlackboardValue(n"alpha", 0.0);
+        this.navPathFXs[type][pointDrawnCount].BreakLoop();
+        this.navPathFXs[type][pointDrawnCount].Kill();
+      }
       pointDrawnCount += 1;
     }
   }
