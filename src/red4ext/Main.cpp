@@ -10,8 +10,6 @@
 #include <RED4ext/Scripting/Natives/Generated/game/mappins/QuestMappin.hpp>
 #include <RED4ext/Scripting/Natives/Generated/game/ui/MinimapContainerController.hpp>
 
-#include "Addresses.hpp"
-#include "LoadResRef.hpp"
 #include <ArchiveXL.hpp>
 #include <RED4ext/Scripting/Natives/Generated/game/FxResource.hpp>
 #include <RED4ext/Scripting/Natives/Generated/red/ResourceReferenceScriptToken.hpp>
