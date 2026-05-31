@@ -217,7 +217,7 @@ public native class InWorldNavigation extends IScriptable {
     let pointDrawnCount: Int32 = 0;
     let dots: array<Transform>;
     let i: Int32 = ArraySize(points) - 1;
-    // Guard against an empty points array. The original code derefenced
+    // Guard against an empty points array. The original code dereferenced
     // points[i] unconditionally; if i was -1 (empty path), that was an
     // out-of-bounds read. With this guard we skip the dots-population
     // loop entirely, and the cleanup loops below correctly kill any
