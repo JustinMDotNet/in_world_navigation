@@ -27,7 +27,7 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         submodules: recursive
         persist-credentials: false
@@ -53,7 +53,7 @@ jobs:
         echo "PRETTY_CONFIG=${config}" | Out-File -FilePath $env:GITHUB_ENV -Encoding UTF8 -Append
 
     - name: Upload mod artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: ${{ env.MOD_ZIP_FILENAME }}_${{ env.PRETTY_CONFIG }}_${{ env.SHORT_SHA }}
         path: ${{ github.workspace }}/game_dir/**
@@ -61,7 +61,7 @@ jobs:
         if-no-files-found: error
 
     - name: Upload debug symbols (PDB)
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: ${{ env.MOD_ZIP_FILENAME }}_${{ env.PRETTY_CONFIG }}_${{ env.SHORT_SHA }}_pdb
         path: ${{ github.workspace }}/game_dir_debug/**
