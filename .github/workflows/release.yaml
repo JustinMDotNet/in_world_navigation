@@ -4,75 +4,70 @@ on:
   push:
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (e.g. v0.1.21)"
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   release:
     name: Build & Release
     runs-on: windows-latest
+    permissions:
+      contents: write
     env:
       GIT_CLIFF_VERSION: 0.10.0
       CHANGELOG_FILE: ${{ github.workspace }}-CHANGES.md
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          submodules: true
-      - uses: ilammy/msvc-dev-cmd@v1.12.1
+          submodules: recursive
+          fetch-depth: 0  # git-cliff needs full history
+          persist-credentials: false
+
+      - name: Set up MSVC
+        uses: ilammy/msvc-dev-cmd@v1.13.0
         with:
           arch: amd64
 
       - name: Configure CMake
         run: cmake -B ${{ github.workspace }}/build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CI_BUILD=ON -DGITHUB_ENV="$env:GITHUB_ENV" -G Ninja
-  
+
       - name: Build
         run: cmake --build ${{ github.workspace }}/build --config RelWithDebInfo
 
       - name: Install git-cliff
-        uses: Alex079/setup-custom-tool@v1
-        with:
-          archiveUrl: https://github.com/orhun/git-cliff/releases/download/v${{ env.GIT_CLIFF_VERSION }}/git-cliff-${{ env.GIT_CLIFF_VERSION }}-x86_64-pc-windows-msvc.zip
-          archiveGlob: '*'
-          toolName: git-cliff
-          toolVersion: ${{ env.GIT_CLIFF_VERSION }}
+        run: |
+          $url = "https://github.com/orhun/git-cliff/releases/download/v${env:GIT_CLIFF_VERSION}/git-cliff-${env:GIT_CLIFF_VERSION}-x86_64-pc-windows-msvc.zip"
+          Invoke-WebRequest -Uri $url -OutFile git-cliff.zip
+          Expand-Archive -Path git-cliff.zip -DestinationPath ${{ github.workspace }}/git-cliff-bin -Force
+          $cliffDir = (Get-ChildItem ${{ github.workspace }}/git-cliff-bin -Directory | Select-Object -First 1).FullName
+          echo "$cliffDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding UTF8 -Append
 
-      - name: Generate a changelog
+      - name: Generate changelog
         run: |
           git-cliff --current --strip header
           git-cliff --current --strip header -o ${{ env.CHANGELOG_FILE }}
-          cat requirements.md >> ${{ env.CHANGELOG_FILE }}
+          Get-Content requirements.md | Add-Content ${{ env.CHANGELOG_FILE }}
 
-      - name: Zipping game_dir
+      - name: Zip game_dir
         run: tar -cvf "${{ github.workspace }}/${{ env.MOD_SLUG }}_${{ github.ref_name }}.zip" --format=zip *
-        working-directory:  game_dir
+        working-directory: game_dir
 
-      - name: Zipping game_dir_debug
+      - name: Zip game_dir_debug
         run: tar -cvf "${{ github.workspace }}/${{ env.MOD_SLUG }}_${{ github.ref_name }}_pdb.zip" --format=zip *
-        working-directory:  game_dir_debug
+        working-directory: game_dir_debug
 
-      # - name: Check file existence
-      #   id: requirements_folder_exists
-      #   uses: andstor/file-existence-action@v1
-      #   with:
-      #     files: "game_dir_requirements"
-
-      # - name: Check file existence
-      #   id: requirements_debug_folder_exists
-      #   uses: andstor/file-existence-action@v1
-      #   with:
-      #     files: "game_dir_requirements_debug"
-
-      # - name: Zipping game_dir_requirements
-      #   if: steps.requirements_folder_exists.outputs.files_exists == 'true'
-      #   run: tar -cvf "${{ github.workspace }}/${{ env.MOD_SLUG }}_${{ github.ref_name }}_requirements.zip" --format=zip *
-      #   working-directory:  game_dir_requirements
-
-      # - name: Zipping game_dir_requirements_debug
-      #   if: steps.requirements_debug_folder_exists.outputs.files_exists == 'true'
-      #   run: tar -cvf "${{ github.workspace }}/${{ env.MOD_SLUG }}_${{ github.ref_name }}_requirements_pdb.zip" --format=zip *
-      #   working-directory:  game_dir_requirements_debug
-
-      - name: Release
-        uses: softprops/action-gh-release@v1
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
           name: ${{ github.ref_name }}${{ env.CYBERPUNK_2077_GAME_VERSION_STR }}
           body_path: ${{ env.CHANGELOG_FILE }}
@@ -80,5 +75,6 @@ jobs:
           files: |
             ${{ env.MOD_SLUG }}_${{ github.ref_name }}*.zip
           prerelease: ${{ contains(github.ref_name, '-') || contains(github.ref_name, '_') }}
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

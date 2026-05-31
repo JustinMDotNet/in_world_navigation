@@ -6,17 +6,17 @@
 	url = https://github.com/microsoft/Detours.git
 [submodule "deps/red4ext.sdk"]
 	path = deps/red4ext.sdk
-	url = git@github.com:jackhumbert/RED4ext.SDK.git
+	url = https://github.com/jackhumbert/RED4ext.SDK.git
 	branch = new-types
 [submodule "deps/cyberpunk_cmake"]
 	path = deps/cyberpunk_cmake
-	url = git@github.com:jackhumbert/cyberpunk_cmake.git
+	url = https://github.com/jackhumbert/cyberpunk_cmake.git
 [submodule "deps/mod_settings"]
 	path = deps/mod_settings
-	url = git@github.com:jackhumbert/mod_settings.git
+	url = https://github.com/jackhumbert/mod_settings.git
 [submodule "deps/archive_xl"]
 	path = deps/archive_xl
 	url = https://github.com/psiberx/cp2077-archive-xl.git
 [submodule "deps/red_lib"]
 	path = deps/red_lib
-	url = git@github.com:jackhumbert/cp2077-red-lib.git
+	url = https://github.com/jackhumbert/cp2077-red-lib.git
