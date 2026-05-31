@@ -22,12 +22,10 @@ configure_mod(
 set(LOAD_ARCHIVES_FROM_RED4EXT ON)
 set(LOAD_REDSCRIPT_FROM_RED4EXT ON)
 
-find_program(ZOLTAN_CLANG_EXE NAMES zoltan-clang.exe PATHS "C:/Users/Jack/Documents/cyberpunk/zoltan/target/release/" CACHE)
 find_program(REDSCRIPT_CLI_EXE NAMES redscript-cli.exe PATHS "${MOD_TOOLS_DIR}" CACHE)
 find_program(CYBERPUNK_2077_EXE NAMES Cyberpunk2077.exe PATHS "${CYBERPUNK_2077_GAME_DIR}/bin/x64" CACHE DOC "Cyberpunk2077.exe Executable File")
 
 configure_red4ext(src/red4ext)
-# configure_red4ext_addresses(Addresses.hpp)
 
 find_package(Detours)
 find_package(Spdlog)
@@ -47,6 +45,5 @@ target_link_libraries(${MOD_SLUG}.packed.reds PUBLIC mod_settings.packed.reds)
 configure_archives(resources/packed/archive/pc/mod/in_world_navigation.archive)
 configure_folder_file(readme.md)
 configure_folder_file(license.md)
-# configure_uninstall()
 configure_release(${MOD_SLUG}_${MOD_VERSION_STR}.zip)
 configure_install()
